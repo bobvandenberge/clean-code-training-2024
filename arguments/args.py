@@ -18,89 +18,87 @@ import re
 #
 class Args:
 
-    def __init__(self, fmt, args):
+    def __init__(self, formatToUse, arguments):
         """
          Construct a new instance of the Args class
 
          Parameters
          ----------
-         fmt : str
+         formatToUse : str
              The format to use
-         args : array
+         arguments : array
              The arguments to extract
          """
 
-        self.array_fmt = [f.strip() for f in fmt.split(',') if f.strip()]
-        """The format that needs to be checked"""
+        self.formats = [format.strip() for format in formatToUse.split(',') if format.strip()]
 
-        self.array_args = []
-        """The arguments that were given"""
+        self.given_arguments = []
+        self.boolean_arguments = {}
+        self.string_arguments = {}
 
-        self.array_bools = {}
-        """The variable in which the booleans get stored"""
+        self.split_arguments(arguments)
 
-        self.array_strs = {}
-        """The variable in which the strings get stored"""
-
-        self.prs_args(args)
-
-        if len(self.array_args) // 2 != len(self.array_fmt):
+        if len(self.given_arguments) // 2 != len(self.formats):
             raise ParseException()
 
-        for index, fmt in enumerate(self.array_fmt):
-            type_indicator = fmt[-1]
+        for index, formatToUse in enumerate(self.formats):
+            type_indicator = formatToUse[-1]
 
             if type_indicator == '*':
-                v = self.array_args[index * 2 + 1]  # Value from arguments
+                value_from_arguments = self.given_arguments[index * 2 + 1]
 
-                # exploded = re.split(r'"(.*?)"', v, 1)
-                exploded = re.split(r'"(.*?)"', v, 2)
+                # exploded = re.split(r'"(.*?)"', valueFromArguments, 1)
+                value_from_arguments = re.split(r'"(.*?)"', value_from_arguments, 2)
 
-                if len(exploded) != 3:
+                if len(value_from_arguments) != 3:
                     raise ParseException()
 
-                val = exploded[1]
+                value_from_arguments = value_from_arguments[1]
 
-                index_fmt = fmt.strip('*')
+                argument_key = formatToUse.strip('*')
 
-                self.array_strs[index_fmt] = val
+                self.string_arguments[argument_key] = value_from_arguments
             else:
-                v = self.array_args[index * 2 + 1]  # Value from arguments
+                value_from_arguments = self.given_arguments[index * 2 + 1]
 
-                if v not in ['true', 'false']:
+                if value_from_arguments not in ['true', 'false']:
                     raise ParseException()
 
-                val = v.lower() == 'true'
+                value_from_arguments = value_from_arguments.lower() == 'true'
 
-                self.array_bools[fmt] = val
+                self.boolean_arguments[formatToUse] = value_from_arguments
 
-    def prs_args(self, args):
+    def split_arguments(self, arguments):
         """
          Parse the arguments
 
          Parameters
          ----------
-         args : array
+         arguments : array
              The arguments
          """
 
-        tmp = [arg.strip() for arg in args.split('-') if arg.strip()]
+        splitted_arguments = [argument.strip() for argument in arguments.split('-') if argument.strip()]
 
-        for arg in tmp:
-            exploded = arg.split(' ', 1)
-            self.array_args.append(exploded[0].strip())
-            self.array_args.append(exploded[1].strip())
+        for argument_and_value in splitted_arguments:
+            splitted = argument_and_value.split(' ', 1)
+
+            argument_indicator = splitted[0].strip()
+            argument_value = splitted[1].strip()
+
+            self.given_arguments.append(argument_indicator)
+            self.given_arguments.append(argument_value)
 
     # def rmQts(sinput):
     #     return sinput[index * 2 + 1].get(0)
 
-    def getB(self, k):
+    def getBoolean(self, key):
         """
          Get a boolean
 
          Parameters
          ----------
-         k : the key
+         key : the key
              The arguments
 
          Return
@@ -108,15 +106,15 @@ class Args:
          null if no entry is found, else boolean
          """
 
-        return self.array_bools.get(k)
+        return self.boolean_arguments.get(key)
 
-    def getS(self, k):
+    def getString(self, key):
         """
          Get a string
 
          Parameters
          ----------
-         k : the key
+         key : the key
              The arguments
 
          Return
@@ -124,7 +122,7 @@ class Args:
          null if no entry is found, else string
          """
 
-        return self.array_strs.get(k)
+        return self.string_arguments.get(key)
 
 
 class ParseException(Exception):
