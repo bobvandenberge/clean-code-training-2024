@@ -11,12 +11,12 @@ class ArgsTest(unittest.TestCase):
 
     def test_parse_and_retrieve_boolean(self):
         sut = Args('a', "-a true")
-        self.assertEqual(True, sut.getBoolean('a'))
+        self.assertEqual(True, sut.get_boolean('a'))
 
     def test_parse_and_retrieve_two_booleans(self):
         sut = Args('a,b', "-a true -b false")
-        self.assertEqual(True, sut.getBoolean('a'))
-        self.assertEqual(False, sut.getBoolean('b'))
+        self.assertEqual(True, sut.get_boolean('a'))
+        self.assertEqual(False, sut.get_boolean('b'))
 
     def test_parse_and_retrieve_boolean_invalid_boolean(self):
         with self.assertRaises(ParseException):
@@ -24,12 +24,12 @@ class ArgsTest(unittest.TestCase):
 
     def test_parse_and_retrieve_string(self):
         sut = Args('hallo*', '-hallo "Hello World"')
-        self.assertEqual("Hello World", sut.getString('hallo'))
+        self.assertEqual("Hello World", sut.get_string('hallo'))
 
     def test_parse_and_retrieve_two_strings(self):
         sut = Args('hallo*,b*', '-hallo "Hello World" -b "Bob"')
-        self.assertEqual("Hello World", sut.getString('hallo'))
-        self.assertEqual("Bob", sut.getString('b'))
+        self.assertEqual("Hello World", sut.get_string('hallo'))
+        self.assertEqual("Bob", sut.get_string('b'))
 
     def test_parse_and_retrieve_string_invalid_string(self):
         with self.assertRaises(ParseException):
@@ -37,8 +37,8 @@ class ArgsTest(unittest.TestCase):
 
     def test_parse_and_retrieve_two_types(self):
         sut = Args('hello,b*', '-hello false -b "Bob"')
-        self.assertEqual(False, sut.getBoolean('hello'))
-        self.assertEqual("Bob", sut.getString('b'))
+        self.assertEqual(False, sut.get_boolean('hello'))
+        self.assertEqual("Bob", sut.get_string('b'))
 
 
 if __name__ == '__main__':

@@ -1,9 +1,13 @@
 import re
 
+STRING_TYPE = '*'
+INTEGER_TYPE = '#'
+DOUBLE_TYPE = '##'
+BOOLEAN_TYPE = ''
 
 # Class Args
 #
-# Schema description: # is for integer, * is for string, ## for double, [*] for varargs, default is boolean
+# Schema type indicators: # is for integer, * is for string, ## for double, [*] for varargs, default is boolean
 #
 # So a valid schema is: "a,b#,c*".
 #
@@ -12,116 +16,72 @@ import re
 # $args.getB("a"); // Returns boolean
 # $args.getI("b"); // Returns integer
 # $args.getS("c"); // Returns String
-#
-# TODO:
-# Refactor this code so it is easier to implement the getInteger functionality.
-#
 class Args:
 
-    def __init__(self, formatToUse, arguments):
-        """
-         Construct a new instance of the Args class
+    def __init__(self, schema, arguments):
+        self.schema_parts = [schema_part.strip() for schema_part in schema.split(',') if schema_part.strip()]
 
-         Parameters
-         ----------
-         formatToUse : str
-             The format to use
-         arguments : array
-             The arguments to extract
-         """
-
-        self.formats = [format.strip() for format in formatToUse.split(',') if format.strip()]
-
-        self.given_arguments = []
+        self.supplied_arguments = self.split_arguments(arguments)
         self.boolean_arguments = {}
         self.string_arguments = {}
 
-        self.split_arguments(arguments)
-
-        if len(self.given_arguments) // 2 != len(self.formats):
+        if not self.are_mandatory_arguments_present(self.schema_parts, self.supplied_arguments):
             raise ParseException()
 
-        for index, formatToUse in enumerate(self.formats):
-            type_indicator = formatToUse[-1]
+        for index, schema_part in enumerate(self.schema_parts):
+            type_indicator = schema_part[-1]
 
-            if type_indicator == '*':
-                value_from_arguments = self.given_arguments[index * 2 + 1]
-
-                # exploded = re.split(r'"(.*?)"', valueFromArguments, 1)
-                value_from_arguments = re.split(r'"(.*?)"', value_from_arguments, 2)
-
-                if len(value_from_arguments) != 3:
-                    raise ParseException()
-
-                value_from_arguments = value_from_arguments[1]
-
-                argument_key = formatToUse.strip('*')
-
-                self.string_arguments[argument_key] = value_from_arguments
+            if type_indicator == STRING_TYPE:
+                self.parse_as_string(index, schema_part)
             else:
-                value_from_arguments = self.given_arguments[index * 2 + 1]
+                self.parse_as_boolean(index, schema_part)
 
-                if value_from_arguments not in ['true', 'false']:
-                    raise ParseException()
+    def parse_as_boolean(self, index, schema_part):
+        argument_value_part = self.supplied_arguments[index * 2 + 1]
 
-                value_from_arguments = value_from_arguments.lower() == 'true'
+        if argument_value_part not in ['true', 'false']:
+            raise ParseException()
 
-                self.boolean_arguments[formatToUse] = value_from_arguments
+        argument_value = argument_value_part.lower() == 'true'
+
+        self.boolean_arguments[schema_part] = argument_value
+
+    def parse_as_string(self, index, schema_part):
+        argument_value_part = self.supplied_arguments[index * 2 + 1]
+
+        argument_value_splitted = re.split(r'"(.*?)"', argument_value_part, 2)
+
+        if len(argument_value_splitted) != 3:
+            raise ParseException()
+
+        argument_value = argument_value_splitted[1]
+
+        argument_key = schema_part.strip('*')
+
+        self.string_arguments[argument_key] = argument_value
+
+    def are_mandatory_arguments_present(self, formats, supplied_arguments):
+        return len(supplied_arguments) // 2 == len(formats)
 
     def split_arguments(self, arguments):
-        """
-         Parse the arguments
+        argument_parts = [argument.strip() for argument in arguments.split('-') if argument.strip()]
+        all_parts = []
 
-         Parameters
-         ----------
-         arguments : array
-             The arguments
-         """
+        for argument_part in argument_parts:
+            splitted_argument_part = argument_part.split(' ', 1)
 
-        splitted_arguments = [argument.strip() for argument in arguments.split('-') if argument.strip()]
+            argument_indicator = splitted_argument_part[0].strip()
+            all_parts.append(argument_indicator)
 
-        for argument_and_value in splitted_arguments:
-            splitted = argument_and_value.split(' ', 1)
+            argument_value = splitted_argument_part[1].strip()
+            all_parts.append(argument_value)
 
-            argument_indicator = splitted[0].strip()
-            argument_value = splitted[1].strip()
+        return all_parts
 
-            self.given_arguments.append(argument_indicator)
-            self.given_arguments.append(argument_value)
-
-    # def rmQts(sinput):
-    #     return sinput[index * 2 + 1].get(0)
-
-    def getBoolean(self, key):
-        """
-         Get a boolean
-
-         Parameters
-         ----------
-         key : the key
-             The arguments
-
-         Return
-         ----------
-         null if no entry is found, else boolean
-         """
-
+    def get_boolean(self, key):
         return self.boolean_arguments.get(key)
 
-    def getString(self, key):
-        """
-         Get a string
-
-         Parameters
-         ----------
-         key : the key
-             The arguments
-
-         Return
-         ----------
-         null if no entry is found, else string
-         """
-
+    def get_string(self, key):
         return self.string_arguments.get(key)
 
 
