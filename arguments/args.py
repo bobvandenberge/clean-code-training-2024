@@ -1,94 +1,148 @@
 import re
 
-STRING_TYPE = '*'
-INTEGER_TYPE = '#'
-DOUBLE_TYPE = '##'
-BOOLEAN_TYPE = ''
+class ParseException(Exception):
+    """Exception thrown when parsing fails."""
+    pass
 
-# Class Args
-#
-# Schema type indicators: # is for integer, * is for string, ## for double, [*] for varargs, default is boolean
-#
-# So a valid schema is: "a,b#,c*".
-#
-# With can then we retrieved:
-# $args = new Args("a,b#,c*", arguments); // arguments = '-a true -b 1 -c "Hello"'
-# $args.getB("a"); // Returns boolean
-# $args.getI("b"); // Returns integer
-# $args.getS("c"); // Returns String
+
 class Args:
+    def __init__(self, fmt, args):
+        """
+        Construct a new instance of the Args class.
 
-    def __init__(self, schema, arguments):
-        self.schema_parts = [schema_part.strip() for schema_part in schema.split(',') if schema_part.strip()]
+        Parameters
+        ----------
+        fmt : str
+            The format to use.
+        args : str
+            The arguments to extract.
+        """
+        self.schema = self.parse_schema(fmt)
+        self.args = self.parse_args(args)
+        self.boolean_args = {}
+        self.string_args = {}
+        self.process_arguments()
 
-        self.supplied_arguments = self.split_arguments(arguments)
-        self.boolean_arguments = {}
-        self.string_arguments = {}
+    def parse_schema(self, fmt):
+        """
+        Parse the schema format.
 
-        if not self.are_mandatory_arguments_present(self.schema_parts, self.supplied_arguments):
+        Parameters
+        ----------
+        fmt : str
+            The format to use.
+
+        Returns
+        -------
+        list
+            List of schema elements.
+        """
+        return [f.strip() for f in fmt.split(',') if f.strip()]
+
+    def parse_args(self, args):
+        """
+        Parse the arguments.
+
+        Parameters
+        ----------
+        args : str
+            The arguments.
+
+        Returns
+        -------
+        list
+            List of parsed arguments.
+        """
+        parsed_args = []
+        tmp_args = [arg.strip() for arg in args.split('-') if arg.strip()]
+        for arg in tmp_args:
+            key, value = arg.split(' ', 1)
+            parsed_args.append((key.strip(), value.strip()))
+        return parsed_args
+
+    def process_arguments(self):
+        """
+        Process the arguments based on the schema.
+        """
+        if len(self.args) != len(self.schema):
             raise ParseException()
 
-        for index, schema_part in enumerate(self.schema_parts):
-            type_indicator = schema_part[-1]
+        for (key, value), schema in zip(self.args, self.schema):
+            type_indicator = schema[-1]
+            key = schema[:-1]
 
-            if type_indicator == STRING_TYPE:
-                self.parse_as_string(index, schema_part)
+            if type_indicator == '*':
+                self.string_args[key] = self.extract_string(value)
+            elif type_indicator == '#':
+                self.boolean_args[key] = self.extract_boolean(value)
             else:
-                self.parse_as_boolean(index, schema_part)
+                raise ParseException()
 
-    def parse_as_boolean(self, index, schema_part):
-        argument_value_part = self.supplied_arguments[index * 2 + 1]
+    def extract_string(self, value):
+        """
+        Extract a string value from the arguments.
 
-        if argument_value_part not in ['true', 'false']:
+        Parameters
+        ----------
+        value : str
+            The argument value.
+
+        Returns
+        -------
+        str
+            The extracted string.
+        """
+        exploded = re.split(r'"(.*?)"', value, 2)
+        if len(exploded) != 3:
             raise ParseException()
+        return exploded[1]
 
-        argument_value = argument_value_part.lower() == 'true'
+    def extract_boolean(self, value):
+        """
+        Extract a boolean value from the arguments.
 
-        self.boolean_arguments[schema_part] = argument_value
+        Parameters
+        ----------
+        value : str
+            The argument value.
 
-    def parse_as_string(self, index, schema_part):
-        argument_value_part = self.supplied_arguments[index * 2 + 1]
-
-        argument_value_splitted = re.split(r'"(.*?)"', argument_value_part, 2)
-
-        if len(argument_value_splitted) != 3:
+        Returns
+        -------
+        bool
+            The extracted boolean.
+        """
+        if value.lower() not in ['true', 'false']:
             raise ParseException()
-
-        argument_value = argument_value_splitted[1]
-
-        argument_key = schema_part.strip('*')
-
-        self.string_arguments[argument_key] = argument_value
-
-    def are_mandatory_arguments_present(self, formats, supplied_arguments):
-        return len(supplied_arguments) // 2 == len(formats)
-
-    def split_arguments(self, arguments):
-        argument_parts = [argument.strip() for argument in arguments.split('-') if argument.strip()]
-        all_parts = []
-
-        for argument_part in argument_parts:
-            splitted_argument_part = argument_part.split(' ', 1)
-
-            argument_indicator = splitted_argument_part[0].strip()
-            all_parts.append(argument_indicator)
-
-            argument_value = splitted_argument_part[1].strip()
-            all_parts.append(argument_value)
-
-        return all_parts
+        return value.lower() == 'true'
 
     def get_boolean(self, key):
-        return self.boolean_arguments.get(key)
+        """
+        Get a boolean value.
+
+        Parameters
+        ----------
+        key : str
+            The key for the boolean value.
+
+        Returns
+        -------
+        bool
+            The boolean value.
+        """
+        return self.boolean_args.get(key)
 
     def get_string(self, key):
-        return self.string_arguments.get(key)
+        """
+        Get a string value.
 
+        Parameters
+        ----------
+        key : str
+            The key for the string value.
 
-class ParseException(Exception):
-    """
-    Class ParseException
-
-    Exception that gets thrown when something fails to parse properly
-    """
-    pass
+        Returns
+        -------
+        str
+            The string value.
+        """
+        return self.string_args.get(key)
